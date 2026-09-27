@@ -1,0 +1,67 @@
+# FORGE automation for the private vault repository.
+# Installed by the FORGE app as .github/workflows/forge-sync.yml together with
+# automation/forge-automation.mjs (the bundle). Runs hourly and on demand from the app.
+#
+# Security notes:
+# - The only third-party action is actions/checkout, pinned to the full commit SHA of v4.2.2.
+# - Dispatch inputs reach the script ONLY through environment variables; they are never
+#   interpolated into the shell script.
+# - The script never prints secrets or data; it decrypts in memory and commits only the
+#   encrypted forge/server/** shards it changed.
+name: FORGE sync
+
+on:
+  schedule:
+    - cron: '17 * * * *'
+  workflow_dispatch:
+    inputs:
+      task:
+        description: 'auto | ping | whoop | whoop-auth | whoop-backfill | calendar | notify | push-test | reviews'
+        type: string
+        required: false
+        default: auto
+      payload:
+        description: 'Encrypted payload from the app (whoop-auth only)'
+        type: string
+        required: false
+        default: ''
+
+permissions:
+  contents: write
+
+concurrency:
+  group: forge-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Check out vault
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 1
+
+      - name: Node version
+        run: node --version
+
+      # The app pins the bundle's SHA-256 here when it installs the automation. Changing this
+      # workflow needs the Workflows permission, so a token that can only write repository
+      # contents cannot swap the bundle that receives the secrets below.
+      - name: Verify automation bundle
+        env:
+          BUNDLE_SHA256: '__BUNDLE_SHA256__'
+        run: echo "$BUNDLE_SHA256  automation/forge-automation.mjs" | sha256sum --check --strict -
+
+      - name: Run FORGE automation
+        run: node automation/forge-automation.mjs
+        env:
+          FORGE_DATA_KEY: ${{ secrets.FORGE_DATA_KEY }}
+          WHOOP_CLIENT_ID: ${{ secrets.WHOOP_CLIENT_ID }}
+          WHOOP_CLIENT_SECRET: ${{ secrets.WHOOP_CLIENT_SECRET }}
+          GOOGLE_SA_KEY: ${{ secrets.GOOGLE_SA_KEY }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          FORGE_TASK: ${{ inputs.task || 'auto' }}
+          FORGE_PAYLOAD: ${{ inputs.payload }}

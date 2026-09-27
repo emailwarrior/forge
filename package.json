@@ -1,0 +1,18 @@
+{
+  "name": "forge",
+  "private": true,
+  "version": "3.0.0",
+  "type": "module",
+  "description": "FORGE v3 \u2014 personal performance system (PWA + automation)",
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.mjs\"",
+    "build:automation": "node tools/build-automation.mjs",
+    "build:sw": "node tools/build-sw.mjs",
+    "e2e": "node tools/e2e-setup.mjs",
+    "serve": "node tools/serve.mjs"
+  },
+  "devDependencies": {
+    "esbuild": "^0.28.2",
+    "web-push": "^3.6.7"
+  }
+}
